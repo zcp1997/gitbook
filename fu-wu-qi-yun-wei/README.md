@@ -18,3 +18,4 @@ icon: server
 - [排障手册](pai-zhang-shou-ce.md)：线上异常、端口占用、DNS、磁盘、负载、服务不可用等排查流程。
 - [安全与加固](an-quan-yu-jia-gu.md)：SSH、防火墙、fail2ban、用户权限、最小权限和审计日志。
 - [服务部署片段](fu-wu-bu-shu-pian-duan.md)：systemd、Docker、反向代理、定时任务和健康检查模板。
+- [视频处理](shi-pin-chu-li/README.md)：视频转码、合并、压缩、抽帧和批处理脚本记录。
