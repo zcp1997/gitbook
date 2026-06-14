@@ -10,7 +10,7 @@ icon: file-video
 把 XHSUHD Docker 服务提供的赛事回放地址，使用 `ffmpeg` 原样转存为本地 MP4 文件。适合需要保留 4K 高帧率回放、避免播放器临时拉流失败、或需要后续离线剪辑的场景。
 
 {% hint style="warning" %}
-XHSUHD 依赖当前小红书 Web 登录态。`a1` 和 `web_session` 属于账号相关 Cookie，不要写进公开文档、聊天记录或 Git 仓库。实际部署时放到 `.env`，并确保 `.env` 不提交。
+XHSUHD 依赖当前小红书 Web 登录态。`a1`、`web_session`、局域网服务地址、m3u 播放列表地址、具体 replay 地址都可能暴露私人服务或账号状态。发布前必须先做本地敏感信息检查；公开文档只保留占位符。
 {% endhint %}
 
 ## Docker 来源与本地目录
@@ -41,8 +41,8 @@ services:
 `.env` 示例：
 
 ```env
-XHS_A1=从 Chrome Cookie 获取的 a1
-XHS_WEB_SESSION=从 Chrome Cookie 获取的 web_session
+XHS_A1=<从 Chrome Cookie 获取的 a1>
+XHS_WEB_SESSION=<从 Chrome Cookie 获取的 web_session>
 ```
 
 启动或更新：
@@ -59,25 +59,23 @@ docker ps --filter name=xhsuhd
 docker logs --tail 80 xhsuhd
 ```
 
-播放列表：
+播放列表地址格式：
 
 ```text
-http://127.0.0.1:34567/xhslist.m3u
+http://<运行Docker机器的IP或域名>:34567/xhslist.m3u
 ```
 
-局域网设备访问时，把 `127.0.0.1` 换成运行 Docker 的机器 IP，例如：
-
-```text
-http://192.168.10.12:34567/xhslist.m3u
-```
+{% hint style="warning" %}
+不要把个人正在使用的真实 m3u 地址、局域网 IP、replay ID 写进公开文章。它们应只出现在本地笔记、命令历史或临时操作记录里。
+{% endhint %}
 
 ## ffmpeg 转存录播
 
-本次转存目标：
+转存目标示例：
 
-- 回放名称：`世界杯4K回放-韩国vs捷克`
-- 源地址：`http://192.168.10.12:34567/replay/6a2b8b570000000007020226`
-- 输出文件：`/Users/zcp/Downloads/世界杯4K回放-韩国vs捷克.mp4`
+- 回放名称：`<回放名称>`
+- 源地址：`http://<运行Docker机器的IP或域名>:34567/replay/<REPLAY_ID>`
+- 输出文件：`~/Downloads/<回放名称>.mp4`
 
 先探测源：
 
@@ -85,17 +83,17 @@ http://192.168.10.12:34567/xhslist.m3u
 ffprobe -hide_banner -v warning \
   -show_entries format=format_name,duration \
   -of default=noprint_wrappers=1:nokey=0 \
-  'http://192.168.10.12:34567/replay/6a2b8b570000000007020226'
+  'http://<运行Docker机器的IP或域名>:34567/replay/<REPLAY_ID>'
 ```
 
 转存命令：
 
 ```bash
 ffmpeg -hide_banner -y \
-  -i 'http://192.168.10.12:34567/replay/6a2b8b570000000007020226' \
+  -i 'http://<运行Docker机器的IP或域名>:34567/replay/<REPLAY_ID>' \
   -c copy \
   -movflags +faststart \
-  '/Users/zcp/Downloads/世界杯4K回放-韩国vs捷克.mp4'
+  "$HOME/Downloads/<回放名称>.mp4"
 ```
 
 参数说明：
@@ -117,7 +115,7 @@ ffmpeg -hide_banner -y \
 ```bash
 python3 - <<'PY'
 from pathlib import Path
-p = Path('/Users/zcp/Downloads/世界杯4K回放-韩国vs捷克.mp4')
+p = Path.home() / 'Downloads' / '<回放名称>.mp4'
 print('exists=', p.exists())
 if p.exists():
     size = p.stat().st_size
@@ -132,18 +130,30 @@ PY
 ffprobe -hide_banner -v error \
   -show_entries format=duration,size,format_name:stream=index,codec_type,codec_name,width,height,avg_frame_rate \
   -of json \
-  '/Users/zcp/Downloads/世界杯4K回放-韩国vs捷克.mp4'
+  "$HOME/Downloads/<回放名称>.mp4"
 ```
 
-本次验证结果：
+一次成功转存的参考验证结果：
 
-- 文件大小：`6,458,541,325 bytes`，约 `6.015 GiB`
 - 容器格式：MP4
 - 视频编码：HEVC / H.265
 - 分辨率：`3840x2160`
 - 帧率：`50 fps`
 - 音频编码：AAC
-- 时长：约 `6383.25 秒`，即 `1小时46分23秒`
+- 时长：约 `1小时46分`
+- 文件体积：约 `6 GiB`
+
+## 发布前敏感信息检查
+
+公开文章提交前至少检查以下内容：
+
+```bash
+rg -n \
+  '192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|xhslist\.m3u|/replay/|web_session|XHS_WEB_SESSION|XHS_A1|a1=' \
+  fu-wu-qi-yun-wei/shi-pin-chu-li/xhsuhd-docker-he-ffmpeg-lu-bo-zhuan-cun.md
+```
+
+如果本机有专门的 `opf` 敏感信息检查工具，发布前先跑 `opf`，再提交 GitBook。
 
 ## 常见问题
 
@@ -161,13 +171,7 @@ docker compose up -d --force-recreate
 检查运行 Docker 的机器 IP、端口映射和防火墙。服务正常时本机应能访问：
 
 ```bash
-curl -I http://127.0.0.1:34567/xhslist.m3u
-```
-
-局域网设备使用：
-
-```text
-http://运行Docker机器的局域网IP:34567/xhslist.m3u
+curl -I http://<运行Docker机器的IP或域名>:34567/xhslist.m3u
 ```
 
 ### ffmpeg 下载慢或中断
