@@ -143,18 +143,6 @@ ffprobe -hide_banner -v error \
 - 时长：约 `1小时46分`
 - 文件体积：约 `6 GiB`
 
-## 发布前敏感信息检查
-
-公开文章提交前至少检查以下内容：
-
-```bash
-rg -n \
-  '192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|xhslist\.m3u|/replay/|web_session|XHS_WEB_SESSION|XHS_A1|a1=' \
-  fu-wu-qi-yun-wei/shi-pin-chu-li/xhsuhd-docker-he-ffmpeg-lu-bo-zhuan-cun.md
-```
-
-如果本机有专门的 `opf` 敏感信息检查工具，发布前先跑 `opf`，再提交 GitBook。
-
 ## 常见问题
 
 ### 列表或回放为空
