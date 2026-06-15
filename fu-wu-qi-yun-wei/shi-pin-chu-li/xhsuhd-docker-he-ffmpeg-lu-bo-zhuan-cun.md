@@ -15,13 +15,13 @@ XHSUHD 依赖当前小红书 Web 登录态。`a1`、`web_session`、局域网服
 
 ## Docker 来源与本地目录
 
-- 镜像：`iptvtop/xhsuhd:latest`
-- 容器名：`xhsuhd`
-- 容器端口：`34567`
-- 本机映射端口：`34567`
-- 本地 Compose 目录：`/Users/zcp/docker-apps/xhsuhd`
-- Compose 文件：`/Users/zcp/docker-apps/xhsuhd/docker-compose.yml`
-- 环境变量文件：`/Users/zcp/docker-apps/xhsuhd/.env`
+* 镜像：`iptvtop/xhsuhd:latest`
+* 容器名：`xhsuhd`
+* 容器端口：`34567`
+* 本机映射端口：`34567`
+* 本地 Compose 目录：`/Users/zcp/docker-apps/xhsuhd`
+* Compose 文件：`/Users/zcp/docker-apps/xhsuhd/docker-compose.yml`
+* 环境变量文件：`/Users/zcp/docker-apps/xhsuhd/.env`
 
 `docker-compose.yml`：
 
@@ -41,14 +41,14 @@ services:
 `.env` 示例：
 
 ```env
-XHS_A1=<从 Chrome Cookie 获取的 a1>
-XHS_WEB_SESSION=<从 Chrome Cookie 获取的 web_session>
+XHS_A1=<从 Cookie 获取的 a1>
+XHS_WEB_SESSION=<从 Cookie 获取的 web_session>
 ```
 
 启动或更新：
 
 ```bash
-cd /Users/zcp/docker-apps/xhsuhd
+cd /Users/mac/docker-apps/xhsuhd
 docker compose pull && docker compose up -d --force-recreate
 ```
 
@@ -61,11 +61,11 @@ docker logs --tail 80 xhsuhd
 
 播放列表地址格式：
 
-```text
+```
 http://<运行Docker机器的IP或域名>:34567/xhslist.m3u
 ```
 
-{% hint style="warning" %}
+{% hint style="danger" %}
 不要把个人正在使用的真实 m3u 地址、局域网 IP、replay ID 写进公开文章。它们应只出现在本地笔记、命令历史或临时操作记录里。
 {% endhint %}
 
@@ -73,9 +73,9 @@ http://<运行Docker机器的IP或域名>:34567/xhslist.m3u
 
 转存目标示例：
 
-- 回放名称：`<回放名称>`
-- 源地址：`http://<运行Docker机器的IP或域名>:34567/replay/<REPLAY_ID>`
-- 输出文件：`~/Downloads/<回放名称>.mp4`
+* 回放名称：`<回放名称>`
+* 源地址：`http://<运行Docker机器的IP或域名>:34567/replay/<REPLAY_ID>`
+* 输出文件：`~/Downloads/<回放名称>.mp4`
 
 先探测源：
 
@@ -98,11 +98,11 @@ ffmpeg -hide_banner -y \
 
 参数说明：
 
-- `-hide_banner`：减少 ffmpeg 启动信息，日志更干净。
-- `-y`：如果目标文件已存在则覆盖。覆盖前应确认目标路径无误。
-- `-i`：输入 XHSUHD 回放地址。
-- `-c copy`：不重新编码，直接复制视频和音频流，速度快且不损失画质。
-- `-movflags +faststart`：把 MP4 的 `moov atom` 移到文件开头，便于播放器更快开始播放。
+* `-hide_banner`：减少 ffmpeg 启动信息，日志更干净。
+* `-y`：如果目标文件已存在则覆盖。覆盖前应确认目标路径无误。
+* `-i`：输入 XHSUHD 回放地址。
+* `-c copy`：不重新编码，直接复制视频和音频流，速度快且不损失画质。
+* `-movflags +faststart`：把 MP4 的 `moov atom` 移到文件开头，便于播放器更快开始播放。
 
 {% hint style="warning" %}
 `-y` 会覆盖同名文件。重要文件建议先改输出文件名，或在执行前检查目标文件是否存在。
@@ -135,13 +135,13 @@ ffprobe -hide_banner -v error \
 
 一次成功转存的参考验证结果：
 
-- 容器格式：MP4
-- 视频编码：HEVC / H.265
-- 分辨率：`3840x2160`
-- 帧率：`50 fps`
-- 音频编码：AAC
-- 时长：约 `1小时46分`
-- 文件体积：约 `6 GiB`
+* 容器格式：MP4
+* 视频编码：HEVC / H.265
+* 分辨率：`3840x2160`
+* 帧率：`50 fps`
+* 音频编码：AAC
+* 时长：约 `1小时46分`
+* 文件体积：约 `6 GiB`
 
 ## 常见问题
 
@@ -150,7 +150,7 @@ ffprobe -hide_banner -v error \
 通常是当前没有直播赛事，或 `a1` / `web_session` 失效。重新在 Chrome 登录小红书，再更新 `.env` 后重启容器。
 
 ```bash
-cd /Users/zcp/docker-apps/xhsuhd
+cd /Users/mac/docker-apps/xhsuhd
 docker compose up -d --force-recreate
 ```
 
