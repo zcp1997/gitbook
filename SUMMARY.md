@@ -3,6 +3,7 @@
 * [随手记](README.md)
 * [Hermes Agent](hermes-agent/README.md)
   * [我用 hermes 做了什么](hermes-agent/wo-rang-ni-zuo-de-dong-xi.md)
+  * [MiMo Voice Clone 与 Telegram 语音发送](hermes-agent/mimo-voice-clone-telegram-yu-yin.md)
 * [服务器运维](fu-wu-qi-yun-wei/README.md)
   * [常见工具脚本](fu-wu-qi-yun-wei/chang-jian-gong-ju-jiao-ben.md)
   * [性能测试脚本](fu-wu-qi-yun-wei/xing-neng-ce-shi-jiao-ben.md)

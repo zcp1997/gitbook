@@ -20,7 +20,7 @@ description: 如何使用工具提高效率
 * Surge CLI skill：通过 Surge CLI 查询环境、策略、请求、设备和连接状态。
 * 小红书视频下载流程：优先保存原始可用视频变体，并保留原始资源包。
 * 百度网盘 skill：管理百度网盘文件、分享、下载和登录状态。
-* MiMo 语音回复：Telegram 里使用 MiMo 语音生成伊莉娜风格语音泡。
+* MiMo 语音回复：Telegram 里使用 MiMo 语音生成伊莉娜风格语音泡，详见 [MiMo Voice Clone 与 Telegram 语音发送](mimo-voice-clone-telegram-yu-yin.md)。
 * Telegram 大视频发送：超过 `50 MB`尽量通过本地 Bot API 保留原始质量。
 
 ## 本机服务配置
