@@ -3,8 +3,6 @@
 * [随手记](README.md)
 * [Hermes Agent](hermes-agent/README.md)
   * [我用 hermes 做了什么](hermes-agent/wo-rang-ni-zuo-de-dong-xi.md)
-* [Mac](mac/README.md)
-  * [Mac 批量合并图片为 PDF](mac/mac-pi-liang-he-bing-tu-pian-wei-pdf.md)
 * [服务器运维](fu-wu-qi-yun-wei/README.md)
   * [常见工具脚本](fu-wu-qi-yun-wei/chang-jian-gong-ju-jiao-ben.md)
   * [性能测试脚本](fu-wu-qi-yun-wei/xing-neng-ce-shi-jiao-ben.md)
