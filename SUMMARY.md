@@ -2,7 +2,7 @@
 
 * [随手记](README.md)
 * [Hermes Agent](hermes-agent/README.md)
-  * [我让你做的东西](hermes-agent/wo-rang-ni-zuo-de-dong-xi.md)
+  * [我用 hermes 做了什么](hermes-agent/wo-rang-ni-zuo-de-dong-xi.md)
 * [Mac](mac/README.md)
   * [Mac 批量合并图片为 PDF](mac/mac-pi-liang-he-bing-tu-pian-wei-pdf.md)
 * [服务器运维](fu-wu-qi-yun-wei/README.md)
