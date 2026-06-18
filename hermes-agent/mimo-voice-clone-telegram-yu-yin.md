@@ -34,9 +34,11 @@ MiMo /chat/completions 生成 WAV
 ffmpeg 转 Ogg/Opus
   ↓
 TelegramAdapter.send_voice 发送语音泡
+  ↓
+ffprobe 读取 Ogg/Opus 时长，并把 duration 传给 Telegram
 ```
 
-关键点：MiMo voice clone 返回的是 base64 音频数据，Hermes 需要先落地为 WAV；Telegram 语音泡要求 Ogg/Opus，所以发送前必须转换。
+关键点：MiMo voice clone 返回的是 base64 音频数据，Hermes 需要先落地为 WAV；Telegram 语音泡要求 Ogg/Opus，所以发送前必须转换。发送前再用 `ffprobe` 读取音频时长并传给 Telegram，可以让语音泡显示时长更稳定。
 
 ## 二、准备条件
 
@@ -45,6 +47,7 @@ TelegramAdapter.send_voice 发送语音泡
   * `MIMO_API_KEY`，或
   * `XIAOMI_API_KEY`
 * 机器上有 `ffmpeg`，用于把 WAV 转成 Ogg/Opus。
+* 机器上有 `ffprobe`，用于读取 Ogg/Opus duration。
 * 有一段本地参考音频，例如 MP3 或 WAV。
 * gateway 修改配置或代码后，需要重启才会对线上 Telegram 生效。
 
@@ -52,6 +55,7 @@ TelegramAdapter.send_voice 发送语音泡
 
 ```bash
 which ffmpeg
+which ffprobe
 hermes gateway status
 ```
 
@@ -127,7 +131,7 @@ audio_bytes = base64.b64decode(audio_b64)
 
 ## 五、代码接入点
 
-Hermes 里主要涉及两个位置。
+Hermes 里主要涉及三个位置。
 
 ### 1. `tools/tts_tool.py`
 
@@ -168,6 +172,29 @@ Gateway 自动语音回复链路：
   * 调用 `adapter.send_voice()` 发送语音泡；
   * 最后清理临时文件。
 
+{% hint style="info" %}
+如果最终文本里大部分是代码、英文日志、JSON、堆栈或命令输出，直接全文转语音的体验通常很差。更合理的策略是：文字回复保持完整；语音只读一段中文摘要，并在文字里标明“语音是摘要版”。
+{% endhint %}
+
+### 3. `gateway/platforms/telegram.py`
+
+Telegram 原生语音泡的发送逻辑：
+
+* `.ogg` / `.opus` 走 `bot.send_voice()`，显示为 Telegram voice bubble。
+* `.mp3` / `.m4a` 走 `bot.send_audio()`，显示为音频文件。
+* `.wav` / `.flac` 等 Telegram 不能作为 voice bubble 播放的格式，回退为文档发送。
+* 发送 `.ogg` / `.opus` 前调用 `_probe_local_audio_duration()`：
+  * 使用 `ffprobe -show_entries format=duration -of json <audio_path>` 读取时长；
+  * 用 `int(round(duration))` 转成秒；
+  * 成功时把 `duration` 传给 `bot.send_voice()`；
+  * 失败时不阻断发送，只是不传 duration。
+
+对应测试文件：
+
+```text
+tests/gateway/test_telegram_voice_duration.py
+```
+
 ## 六、开启 Telegram 自动语音
 
 在目标 Telegram 聊天里发送：
@@ -205,8 +232,9 @@ hermes gateway status
 基础验证：
 
 ```bash
-python -m py_compile tools/tts_tool.py gateway/run.py
+python -m py_compile tools/tts_tool.py gateway/run.py gateway/platforms/telegram.py
 python -m pytest -q tests/tools/test_tts_mimo.py tests/gateway/test_voice_command.py::TestHandleVoiceCommand tests/gateway/test_voice_command.py::TestAutoVoiceReply tests/gateway/test_voice_command.py::TestSendVoiceReply
+python -m pytest -q tests/gateway/test_telegram_voice_duration.py
 ```
 
 手动验证：
@@ -216,13 +244,58 @@ python -m pytest -q tests/tools/test_tts_mimo.py tests/gateway/test_voice_comman
 3. 确认先后收到：
    * 文本回复；
    * Telegram 原生 voice bubble，而不是文件附件。
-4. 查看 gateway 日志是否有 TTS 或 Opus 转换错误：
+4. 确认语音泡显示时长基本正确。
+5. 查看 gateway 日志是否有 TTS、Opus 转换或 duration 探测错误：
 
 ```bash
-rg -n "Auto voice reply|MiMo TTS|Opus|send_voice|TTS generation failed" ~/.hermes/logs/gateway.log
+rg -n "Auto voice reply|MiMo TTS|Opus|send_voice|ffprobe|duration|TTS generation failed" ~/.hermes/logs/gateway.log
 ```
 
-## 八、常见问题
+## 八、语音内容策略与调优
+
+自动语音不应该机械朗读最终文本的全部内容。Telegram 上最常见的问题是：最终回复里有大量代码、英文日志、路径、JSON 或命令输出，TTS 读出来既长又难听清，用户体验反而变差。
+
+推荐策略：
+
+* **文字回复保留完整内容**：代码、命令、错误堆栈、路径和检查结果仍然放在文字里。
+* **语音回复使用摘要版**：只读结论、关键动作、风险和下一步。
+* **明确标注**：如果语音不是全文，文字里写清楚“语音是摘要版”。
+* **摘要用中文自然语言**：避免逐字读英文函数名、长路径、JSON key、日志噪声。
+* **短于 60 秒优先**：语音泡适合听结论，不适合听完整技术报告。
+
+可用的调优规则：
+
+1. 如果最终文本长度较短，且没有大段代码或日志，可以全文转语音。
+2. 如果包含代码块、长英文段落、终端输出、JSON、diff、表格，应生成摘要再转语音。
+3. 摘要结构建议固定为：
+   * 结论；
+   * 已做动作；
+   * 验证结果；
+   * 需要用户知道的风险或下一步。
+4. 对技术名词保留必要英文，但不要朗读大段代码。
+5. 如果语音是摘要版，最终文字回复应显式标注，避免用户以为语音被截断。
+
+摘要示例：
+
+```text
+语音是摘要版：已完成 MiMo voice clone 到 Telegram 语音泡的链路；
+发送前会把 WAV 转成 Ogg/Opus，并用 ffprobe 读取时长传给 Telegram；
+相关测试已通过。完整代码和验证命令见文字部分。
+```
+
+### 调优检查清单
+
+每次调整 TTS 体验后，按这个顺序验收：
+
+1. **格式**：最终发送的是 Telegram voice bubble，不是普通文件。
+2. **时长**：语音泡显示时长与实际播放时长基本一致。
+3. **可听性**：不朗读大段代码、英文日志或 JSON。
+4. **一致性**：语音摘要和文字回复不矛盾。
+5. **标注**：摘要版语音要在文字里说明。
+6. **回退**：`ffprobe` 或 duration 探测失败时，不能影响语音发送。
+7. **重启**：代码或配置修改后，确认 gateway 已重启并加载新代码。
+
+## 九、常见问题
 
 ### 收到的是文件，不是语音泡
 
@@ -233,6 +306,37 @@ rg -n "Auto voice reply|MiMo TTS|Opus|send_voice|TTS generation failed" ~/.herme
 * 确认安装 `ffmpeg`。
 * 确认 `_send_voice_reply()` 里有 Telegram 防御性转换。
 * 确认 `text_to_speech_tool()` 返回的 `file_path` 是 `.ogg` 或 `.opus`。
+
+### 语音泡时长不准
+
+通常是发送时没有给 Telegram 传 duration，或本地 `ffprobe` 无法读取文件时长。
+
+处理：
+
+* 确认安装 `ffprobe`。
+* 用本地命令检查音频文件：
+
+```bash
+ffprobe -v error -show_entries format=duration -of json /path/to/audio.ogg
+```
+
+* 确认 `TelegramAdapter.send_voice()` 对 `.ogg` / `.opus` 调用了 `_probe_local_audio_duration()`。
+* 确认相关测试通过：
+
+```bash
+python -m pytest -q tests/gateway/test_telegram_voice_duration.py
+```
+
+### 语音太长、代码和英文太多，听不清楚
+
+这是内容策略问题，不是单纯的 TTS provider 问题。
+
+处理：
+
+* 文字回复保留完整技术细节。
+* 语音只合成中文摘要版。
+* 在最终文字里标注“语音是摘要版”。
+* 摘要只保留结论、已做动作、验证结果和下一步。
 
 ### MiMo 返回 401
 
@@ -271,12 +375,14 @@ hermes gateway status
 
 然后重新在 Telegram 里发消息验证。
 
-## 九、最小验收标准
+## 十、最小验收标准
 
 一次接入完成后，至少满足：
 
 * `text_to_speech_tool()` 使用 MiMo voice clone 成功生成音频。
 * Telegram 自动语音回复最终发送的是 Ogg/Opus voice bubble。
 * `/voice tts`、`/voice on`、`/voice off` 行为符合预期。
+* `.ogg` / `.opus` 发送前会尽量探测 duration，并传给 Telegram。
+* 大段代码、英文日志或 JSON 场景下，语音使用摘要版，而不是机械朗读全文。
 * gateway 重启后配置仍然生效。
 * 日志里没有泄露 API Key、Bot Token、真实聊天 ID 或参考音频 base64。
