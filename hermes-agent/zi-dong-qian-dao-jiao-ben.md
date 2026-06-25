@@ -1,0 +1,314 @@
+---
+description: V2EX 与一点万象自动签到脚本的脱敏核心逻辑
+icon: robot
+---
+
+# 自动签到脚本
+
+这页记录两个在 Hermes Agent 中运行过的自动签到脚本核心逻辑：V2EX 与一点万象。内容只保留可复用流程，所有账号、Cookie、Token、设备指纹、真实路径、Profile 名称和商场编号均已脱敏。
+
+{% hint style="warning" %}
+不要把真实 Cookie、Token、设备指纹、账号信息或本机绝对路径写入公开文档。实际部署时应通过本机私密脚本、环境变量或权限受控的配置文件读取。
+{% endhint %}
+
+## V2EX：浏览器会话签到
+
+### 思路
+
+V2EX 的每日奖励页会在已登录状态下返回一个带 `once` 参数的动态领取链接。脚本不保存账号密码，也不复制 Cookie，而是复用本机浏览器 Profile 的登录态，通过浏览器自动化完成领取。
+
+核心流程：
+
+1. 关闭同名浏览器自动化 session，避免上次 cron 残留状态影响本次运行。
+2. 用指定浏览器 Profile 打开 `https://www.v2ex.com/mission/daily`。
+3. 在页面内执行 JS，读取正文状态并从 HTML 提取 `/mission/daily/redeem?once=...`。
+4. 如果页面显示已经领取，直接返回成功。
+5. 如果未领取且找到 redeem 链接，用浏览器导航访问领取链接。
+6. 重新打开每日页复查，确认页面显示已领取。
+7. 失败时只输出状态摘要，不打印完整 HTML、Cookie 或敏感上下文。
+
+{% code title="v2ex-signin-core.py" %}
+```python
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import ast
+import json
+import subprocess
+import time
+from datetime import datetime
+
+PROFILE = "<CHROME_PROFILE_NAME>"
+SESSION = "v2ex-daily-signin"
+BASE_URL = "https://www.v2ex.com"
+DAILY_URL = f"{BASE_URL}/mission/daily"
+
+
+def bu_args(*args: str) -> list[str]:
+    return ["browser-use", "--session", SESSION, *args]
+
+
+def run(args: list[str], timeout: int = 120, check: bool = True) -> str:
+    proc = subprocess.run(
+        args,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        timeout=timeout,
+    )
+    if check and proc.returncode != 0:
+        raise RuntimeError(f"command failed ({proc.returncode}): {' '.join(args)}\n{proc.stdout.strip()}")
+    return proc.stdout.strip()
+
+
+def run_bu(args: list[str], timeout: int = 120, retries: int = 1) -> str:
+    last_error: Exception | None = None
+    for attempt in range(retries + 1):
+        try:
+            return run(args, timeout=timeout)
+        except Exception as exc:
+            last_error = exc
+            if attempt >= retries:
+                break
+            run(bu_args("close"), timeout=60, check=False)
+            time.sleep(2)
+    raise last_error or RuntimeError("browser-use command failed")
+
+
+def parse_browser_use_result(output: str):
+    text = output.strip()
+    if text.startswith("result:"):
+        text = text.split("result:", 1)[1].strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return ast.literal_eval(text)
+
+
+def page_info() -> dict:
+    js = r"""
+(() => {
+  const html = document.documentElement.innerHTML;
+  const text = document.body ? document.body.innerText : '';
+  const redeemMatch = html.match(/location\.href\s*=\s*['"]([^'"]*\/mission\/daily\/redeem\?once=[^'"]+)['"]/);
+  const streakMatch = text.match(/已连续登录\s*(\d+)\s*天/);
+  const claimedMatch = text.match(/已成功领取每日登录奖励\s*([^\n]+)/);
+  return JSON.stringify({
+    url: location.href,
+    title: document.title,
+    loggedIn: text.includes('登出'),
+    signed: text.includes('每日登录奖励已领取'),
+    redeemPath: redeemMatch ? redeemMatch[1] : null,
+    streakDays: streakMatch ? Number(streakMatch[1]) : null,
+    claimed: claimedMatch ? claimedMatch[1].trim() : null,
+  });
+})()
+""".strip()
+    return parse_browser_use_result(run_bu(bu_args("eval", js), timeout=60))
+
+
+def main() -> int:
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    run(bu_args("close"), timeout=60, check=False)
+    try:
+        run_bu(bu_args("--profile", PROFILE, "open", DAILY_URL), timeout=180)
+        info = page_info()
+
+        if not info.get("loggedIn"):
+            print("V2EX 签到失败：浏览器 Profile 未登录或登录态已失效。")
+            return 2
+
+        if info.get("signed"):
+            print(f"V2EX 今日已签到，连续天数：{info.get('streakDays', '未知')}。{now}")
+            return 0
+
+        redeem_path = info.get("redeemPath")
+        if not redeem_path:
+            print("V2EX 签到失败：未找到领取链接。")
+            return 3
+
+        redeem_url = redeem_path if redeem_path.startswith("http") else f"{BASE_URL}{redeem_path}"
+        run_bu(bu_args("open", redeem_url), timeout=180)
+        run_bu(bu_args("open", DAILY_URL), timeout=180)
+        after = page_info()
+
+        if after.get("signed"):
+            print(f"V2EX 签到成功，连续天数：{after.get('streakDays', '未知')}。{now}")
+            return 0
+
+        print("V2EX 签到失败：访问领取链接后复查仍未显示已领取。")
+        return 4
+    finally:
+        run(bu_args("close"), timeout=60, check=False)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+```
+{% endcode %}
+
+## 一点万象：抓包参数签名签到
+
+### 思路
+
+一点万象签到接口来自移动端 H5 请求。脚本用抓包得到的必要字段重放请求，但公开文档中不能出现真实 Token、Cookie、设备参数、IMEI、商场编号或签名密钥。
+
+核心流程：
+
+1. 从私密配置读取 `mallNo`、`imei`、`deviceParams`、`params`、`token`、`cookie` 和签名密钥。
+2. 生成当前毫秒级 `timestamp`、偏移后的 `t`、当前日期字符串。
+3. 按接口规则构造待签名字段：排除 `sign`，按 key 排序，部分字段需要 URL decode 后参与签名。
+4. 拼接 `key=value` 串并追加签名密钥，计算 MD5 得到 `sign`。
+5. 组装 `application/x-www-form-urlencoded` 请求体。注意已经 percent-encoded 的字段不要再次 urlencode。
+6. 用接近 H5 的请求头发送 `curl` 请求。
+7. 解析 JSON 响应，只输出成功、已签到、请求频繁或失败摘要，不打印原始响应中的敏感字段。
+
+{% code title="mixc-signin-core.sh" %}
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# 实际使用时从权限受控的本机配置读取，不要写进公开仓库。
+MALL_NO="<MALL_NO>"
+IMEI="<DEVICE_ID>"
+DEVICE_PARAMS="<URL_ENCODED_DEVICE_PARAMS>"
+TOKEN="<TOKEN>"
+PARAMS="<URL_ENCODED_PARAMS>"
+COOKIE="<COOKIE>"
+SIGN_SECRET="<SIGN_SECRET>"
+
+URL="https://app.mixcapp.com/mixc/gateway"
+APP_ID="<APP_ID>"
+PLATFORM="h5"
+APP_VERSION="<APP_VERSION>"
+OS_VERSION="<OS_VERSION>"
+ACTION="mixc.app.memberSign.sign"
+API_VERSION="1.0"
+SWIMLANE="<SWIMLANE>"
+USER_AGENT="<MOBILE_H5_USER_AGENT>"
+
+body_file="$(mktemp)"
+trap 'rm -f "$body_file"' EXIT
+
+read -r post_body referer < <(python3 - <<'PY' "$ACTION" "$API_VERSION" "$APP_ID" "$APP_VERSION" "$DEVICE_PARAMS" "$IMEI" "$MALL_NO" "$OS_VERSION" "$PARAMS" "$PLATFORM" "$TOKEN" "$SIGN_SECRET" "$SWIMLANE"
+import hashlib
+import sys
+import time
+import urllib.parse
+from datetime import datetime
+
+action, api_version, app_id, app_version, device_params, imei, mall_no, os_version, params, platform, token, secret, swimlane = sys.argv[1:]
+now_ms = int(time.time() * 1000)
+ts = str(now_ms)
+t = str(now_ms + 25)
+date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+fields_for_sign = {
+    "X-Mixc-Swimlane": swimlane,
+    "action": action,
+    "apiVersion": api_version,
+    "appId": app_id,
+    "appVersion": app_version,
+    "date": date,
+    "deviceParams": urllib.parse.unquote(device_params),
+    "imei": imei,
+    "mallNo": mall_no,
+    "osVersion": os_version,
+    "params": urllib.parse.unquote(params),
+    "platform": platform,
+    "t": t,
+    "timestamp": ts,
+    "token": token,
+}
+
+sign_src = "&".join(f"{key}={fields_for_sign[key]}" for key in sorted(fields_for_sign)) + f"&{secret}"
+sign = hashlib.md5(sign_src.encode("utf-8")).hexdigest()
+
+body_parts = [
+    ("mallNo", mall_no),
+    ("appId", app_id),
+    ("platform", platform),
+    ("imei", imei),
+    ("appVersion", app_version),
+    ("osVersion", os_version),
+    ("action", action),
+    ("apiVersion", api_version),
+    ("timestamp", ts),
+    ("deviceParams", device_params),
+    ("X-Mixc-Swimlane", swimlane),
+    ("t", t),
+    ("date", urllib.parse.quote(date)),
+    ("token", token),
+    ("params", params),
+    ("sign", sign),
+]
+
+post_body = "&".join(f"{key}={value}" for key, value in body_parts)
+referer = f"https://app.mixcapp.com/m/m-{mall_no}/signIn?appVersion={app_version}&mallNo={mall_no}&timestamp={ts}&showWebNavigation=true&hideNativeNavigation=true"
+print(post_body, referer)
+PY
+)
+
+http_code="$({
+  curl --location "$URL" \
+    --header 'Accept: application/json, text/plain, */*' \
+    --header 'Origin: https://app.mixcapp.com' \
+    --header "User-Agent: ${USER_AGENT}" \
+    --header 'Content-Type: application/x-www-form-urlencoded' \
+    --header "Referer: ${referer}" \
+    --header "Cookie: ${COOKIE}" \
+    --data-raw "${post_body}" \
+    --compressed \
+    --silent --show-error \
+    --max-time 60 \
+    --output "$body_file" \
+    --write-out '%{http_code}'
+} 2>&1)" || {
+  echo "一点万象自动签到请求失败：${http_code}"
+  exit 1
+}
+
+python3 - <<'PY' "$http_code" "$body_file"
+import json
+import pathlib
+import sys
+
+http_code, body_path = sys.argv[1:]
+body = pathlib.Path(body_path).read_text(errors="replace")
+
+try:
+    data = json.loads(body)
+except Exception:
+    print(f"一点万象自动签到失败：响应不是 JSON，HTTP {http_code}")
+    sys.exit(1)
+
+message = str(data.get("message") or data.get("msg") or "")
+
+if not str(http_code).startswith("2"):
+    print(f"一点万象自动签到失败：HTTP {http_code}，{message or '无错误信息'}")
+    sys.exit(1)
+
+if data.get("code") == 0 or data.get("success") is True:
+    print("一点万象自动签到成功")
+    sys.exit(0)
+
+if "已签到" in message or "不可重复签到" in message:
+    print("一点万象今日已签到")
+    sys.exit(0)
+
+if "请求频繁" in message:
+    print("一点万象请求频繁：接口签名已通过，但需要稍后重试")
+    sys.exit(0)
+
+print(f"一点万象自动签到失败：{message or '接口未返回明确原因'}")
+sys.exit(1)
+PY
+```
+{% endcode %}
+
+## 安全边界
+
+* 不在公开文档保存真实登录态、Cookie、Token、设备指纹或完整抓包内容。
+* V2EX 方案优先复用浏览器登录态，避免复制账号密码和 Cookie。
+* 一点万象方案依赖接口参数和签名规则，字段变化后需要重新验证；失败日志只输出摘要。
+* 自动化任务应限制输出内容，避免 cron 通知泄露响应体或调试信息。
