@@ -11,17 +11,50 @@ icon: robot
 
 ### 思路
 
-V2EX 的每日奖励页会在已登录状态下返回一个带 `once` 参数的动态领取链接。脚本复用浏览器 Profile 中已有的登录态打开页面，再由浏览器自动化访问领取链接并复查结果。
+V2EX 的每日奖励页会在已登录状态下返回一个带 `once` 参数的动态领取链接。最初的方案是复用本机 Chrome Profile 中已有的登录态；实际运行后发现，在 macOS 上这条路容易被两个问题卡住：Chrome 正在运行时 Profile 文件会被锁，Chrome 退出后自动化进程又可能因为系统隐私权限读不到真实用户数据目录。
+
+更稳的做法是：先用 `browser-use` 的独立自动化 Profile 手动登录一次 V2EX，导出该自动化 Profile 的 cookie；定时脚本每次启动自己的浏览器 session，导入这份 cookie，再打开每日任务页领取奖励。这样不需要触碰真实 Chrome Profile，也不会受 Chrome 是否正在运行影响。
 
 核心流程：
 
 1. 关闭同名浏览器自动化 session，避免上次 cron 残留状态影响本次运行。
-2. 用指定浏览器 Profile 打开 `https://www.v2ex.com/mission/daily`。
-3. 在页面内执行 JS，读取正文状态并从 HTML 提取 `/mission/daily/redeem?once=...`。
-4. 如果页面显示已经领取，直接返回成功。
-5. 如果未领取且找到 redeem 链接，用浏览器导航访问领取链接。
-6. 重新打开每日页复查，确认页面显示已领取。
-7. 失败时只输出状态摘要，避免把完整页面内容刷进日志。
+2. 打开 V2EX 首页，导入之前保存的 V2EX cookie。
+3. 打开 `https://www.v2ex.com/mission/daily`。
+4. 在页面内执行 JS，读取正文状态并从 HTML 提取 `/mission/daily/redeem?once=...`。
+5. 如果页面未登录，提示重新在自动化窗口登录并刷新 cookie。
+6. 如果页面显示已经领取，直接返回成功。
+7. 如果未领取且找到 redeem 链接，用浏览器导航访问领取链接。
+8. 重新打开每日页复查，确认页面显示已领取。
+9. 失败时只输出状态摘要，避免把完整页面内容刷进日志。
+
+### 首次登录与刷新 cookie
+
+第一次部署，或者 V2EX 登录态失效时，打开一个可见的自动化窗口手动登录：
+
+```bash
+browser-use --session v2ex-auth close
+browser-use --session v2ex-auth --headed open 'https://www.v2ex.com/signin?next=%2Fmission%2Fdaily'
+```
+
+登录完成后，先确认自动化窗口已经看到登录态：
+
+```bash
+browser-use --session v2ex-auth eval "(() => document.body.innerText.includes('登出'))()"
+```
+
+再导出 cookie 到脚本使用的位置：
+
+```bash
+mkdir -p ~/.local/share/v2ex-signin
+browser-use --session v2ex-auth cookies export --url 'https://www.v2ex.com' ~/.local/share/v2ex-signin/cookies.json
+chmod 600 ~/.local/share/v2ex-signin/cookies.json
+```
+
+{% hint style="warning" %}
+不要在用户刚刚登录的同一个 session 上直接运行带 `close_session()` 的定时脚本：脚本开头通常会关闭同名 session 来清理状态，容易把刚登录好的窗口关掉。手动登录建议使用 `v2ex-auth` 这样的临时 session，定时任务使用 `v2ex-daily-signin` 这样的固定 session。
+{% endhint %}
+
+如果仍想复用真实 Chrome Profile，需要先确保 Chrome 完全退出，并且运行自动化的终端或服务进程有权限访问 Chrome 用户数据目录；否则会遇到 Profile lock 或 `Operation not permitted`。
 
 {% code title="v2ex-signin-core.py" %}
 ```python
@@ -34,10 +67,10 @@ import subprocess
 import time
 from datetime import datetime
 
-PROFILE = "<CHROME_PROFILE_NAME>"
 SESSION = "v2ex-daily-signin"
 BASE_URL = "https://www.v2ex.com"
 DAILY_URL = f"{BASE_URL}/mission/daily"
+COOKIE_FILE = "<PATH_TO_V2EX_COOKIE_JSON>"
 
 
 def bu_args(*args: str) -> list[str]:
@@ -107,11 +140,13 @@ def main() -> int:
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     run(bu_args("close"), timeout=60, check=False)
     try:
-        run_bu(bu_args("--profile", PROFILE, "open", DAILY_URL), timeout=180)
+        run_bu(bu_args("open", BASE_URL), timeout=180)
+        run_bu(bu_args("cookies", "import", COOKIE_FILE), timeout=60)
+        run_bu(bu_args("open", DAILY_URL), timeout=180)
         info = page_info()
 
         if not info.get("loggedIn"):
-            print("V2EX 签到失败：浏览器 Profile 未登录或登录态已失效。")
+            print("V2EX 签到失败：自动化 Profile 未登录或 cookie 已失效。")
             return 2
 
         if info.get("signed"):
@@ -304,6 +339,7 @@ PY
 
 ## 运行建议
 
-* V2EX 方案依赖浏览器 Profile 的登录状态，适合放在固定机器上定时运行。
+* V2EX 推荐使用 browser-use 独立自动化 Profile + cookie 导入，避免依赖真实 Chrome Profile。
+* 如果脚本报告 V2EX 未登录，优先重新打开 `v2ex-auth` 手动登录并导出 cookie，不要先怀疑 redeem 逻辑。
 * 一点万象方案依赖接口字段和签名规则，字段变化后需要重新核对请求结构。
 * 定时任务日志保留结果摘要即可，方便推送通知，也避免把整段响应体刷进通知里。
