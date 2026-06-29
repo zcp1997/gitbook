@@ -1,6 +1,7 @@
 # Table of contents
 
 * [随手记](README.md)
+* [数字资产与订阅服务台账](shu-zi-zi-chan-yu-ding-yue-fu-wu-tai-zhang.md)
 * [Hermes Agent](hermes-agent/README.md)
   * [我用 hermes 做了什么](hermes-agent/wo-rang-ni-zuo-de-dong-xi.md)
   * [自动签到脚本](hermes-agent/zi-dong-qian-dao-jiao-ben.md)
