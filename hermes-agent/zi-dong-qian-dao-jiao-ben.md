@@ -5,27 +5,36 @@ icon: robot
 
 # 自动签到脚本
 
-这页记录两个在 Hermes Agent 中运行过的自动签到脚本：V2EX 使用浏览器会话领取每日奖励；一点万象按移动端 H5 接口规则生成签名并提交签到请求。代码示例保留核心流程，实际部署时把本机相关配置替换为自己的值。
+这页记录两个在 Hermes Agent 中运行过的自动签到脚本：V2EX 使用浏览器辅助获取登录态，再通过 HTTP 会话领取每日奖励；一点万象按移动端 H5 接口规则生成签名并提交签到请求。代码示例保留核心流程，实际部署时把本机相关配置替换为自己的值。
 
-## V2EX：浏览器会话签到
+## V2EX：浏览器辅助登录 + HTTP 签到
 
 ### 思路
 
 V2EX 的每日奖励页会在已登录状态下返回一个带 `once` 参数的动态领取链接。最初的方案是复用本机 Chrome Profile 中已有的登录态；实际运行后发现，在 macOS 上这条路容易被两个问题卡住：Chrome 正在运行时 Profile 文件会被锁，Chrome 退出后自动化进程又可能因为系统隐私权限读不到真实用户数据目录。
 
-更稳的做法是：先用 `browser-use` 的独立自动化 Profile 手动登录一次 V2EX，导出该自动化 Profile 的 cookie；定时脚本每次启动自己的浏览器 session，导入这份 cookie，再打开每日任务页领取奖励。这样不需要触碰真实 Chrome Profile，也不会受 Chrome 是否正在运行影响。
+于是登录态改成由 `browser-use` 的独立自动化 Profile 维护：在可见窗口里手动登录一次，导出 cookie，定时脚本只读取该文件。这样不需要触碰真实 Chrome Profile，也不会受 Chrome 是否正在运行影响。
+
+但“能打开每日任务页”不等于“能完成领取”。后续实际运行中，browser-use 可以正常读取已登录页面、解析出新的 `once`，访问领取链接后却仍然没有领取成功。领取响应里真正的错误是：
+
+> 你的浏览器有一些奇奇怪怪的设置，请用一个干净安装的浏览器重试一下吧
+
+直接导航领取链接、点击页面中的真实按钮、改用 `--headed` 可视模式都得到同样结果。这说明问题不在登录态、按钮点击方式或旧 token，而在 V2EX 对自动 Chromium 请求环境的判断。最终方案保留 browser-use 负责人工登录和 cookie 导出，定时签到则改用 `requests.Session`：加载同一份 cookie，以普通浏览器导航请求的形式获取动态链接、领取并复查。
+
+{% hint style="info" %}
+这里不是简单地在原 browser-use 脚本上补一个请求头。实际改动是把定时签到的执行引擎从自动 Chromium 换成 HTTP 会话；浏览器只保留在人工刷新登录态的环节。
+{% endhint %}
 
 核心流程：
 
-1. 关闭同名浏览器自动化 session，避免上次 cron 残留状态影响本次运行。
-2. 打开 V2EX 首页，导入之前保存的 V2EX cookie。
-3. 打开 `https://www.v2ex.com/mission/daily`。
-4. 在页面内执行 JS，读取正文状态并从 HTML 提取 `/mission/daily/redeem?once=...`。
-5. 如果页面未登录，提示重新在自动化窗口登录并刷新 cookie。
-6. 如果页面显示已经领取，直接返回成功。
-7. 如果未领取且找到 redeem 链接，用浏览器导航访问领取链接。
-8. 重新打开每日页复查，确认页面显示已领取。
-9. 失败时只输出状态摘要，避免把完整页面内容刷进日志。
+1. 从本地 cookie JSON 创建 `requests.Session`。
+2. 请求 `https://www.v2ex.com/mission/daily`，检查登录态和今日领取状态。
+3. 从 HTML 提取 `/mission/daily/redeem?once=...`。
+4. 如果已领取，直接返回成功；如果未登录，提示人工刷新 cookie。
+5. 携带普通浏览器导航请求头，并将每日任务页设为 `Referer`，请求领取链接。
+6. 再次请求每日任务页，以“页面明确显示已领取”为唯一成功条件。
+7. 如果领取响应出现浏览器设置警告，单独报告为请求环境被拒绝，不要误判成 cookie 过期。
+8. 日志只保留状态摘要，不输出 cookie、完整 HTML 或动态领取链接。
 
 ### 首次登录与刷新 cookie
 
@@ -51,130 +60,164 @@ chmod 600 ~/.local/share/v2ex-signin/cookies.json
 ```
 
 {% hint style="warning" %}
-不要在用户刚刚登录的同一个 session 上直接运行带 `close_session()` 的定时脚本：脚本开头通常会关闭同名 session 来清理状态，容易把刚登录好的窗口关掉。手动登录建议使用 `v2ex-auth` 这样的临时 session，定时任务使用 `v2ex-daily-signin` 这样的固定 session。
+cookie 文件等同于登录凭据，应只允许当前用户读取。定时脚本不需要保存账号密码，也不应把 cookie、`once` 链接或完整响应体写入通知和普通日志。
 {% endhint %}
 
 如果仍想复用真实 Chrome Profile，需要先确保 Chrome 完全退出，并且运行自动化的终端或服务进程有权限访问 Chrome 用户数据目录；否则会遇到 Profile lock 或 `Operation not permitted`。
+
+### 这次故障如何定位
+
+失败表面上只是“访问领取链接后复查仍未显示已领取”。真正有区分度的证据来自领取后的页面正文：
+
+1. 每日页显示“登出”入口，证明 cookie 仍有效。
+2. 页面能生成 `redeem?once=...`，证明当前登录态能进入任务流程。
+3. 领取前后 `once` 数字发生变化，只说明每日页重新生成了动态链接，不能证明上一次领取成功。
+4. 领取后的页面包含“浏览器有一些奇奇怪怪的设置”，说明 V2EX 主动拒绝了请求环境。
+5. browser-use 的直接导航、真实按钮点击和 headed 模式均失败，而同一份 cookie 在普通 HTTP 会话中领取并复查成功，最终把故障范围收敛到自动 Chromium 请求环境。
+
+{% hint style="warning" %}
+不要把“已访问 redeem URL”“HTTP 200”或“once 已变化”当成签到成功。成功必须由随后重新获取的每日页明确显示“每日登录奖励已领取”来确认。
+{% endhint %}
 
 {% code title="v2ex-signin-core.py" %}
 ```python
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import ast
+import html
 import json
-import subprocess
-import time
+import os
+import re
+import warnings
 from datetime import datetime
 
-SESSION = "v2ex-daily-signin"
+warnings.filterwarnings("ignore", message="urllib3 v2 only supports OpenSSL.*")
+
+import requests
+
 BASE_URL = "https://www.v2ex.com"
 DAILY_URL = f"{BASE_URL}/mission/daily"
 COOKIE_FILE = "<PATH_TO_V2EX_COOKIE_JSON>"
+TIMEOUT = 30
 
 
-def bu_args(*args: str) -> list[str]:
-    return ["browser-use", "--session", SESSION, *args]
+def build_session() -> requests.Session:
+    with open(COOKIE_FILE, encoding="utf-8") as handle:
+        raw = json.load(handle)
+    cookies = raw.get("cookies", raw) if isinstance(raw, dict) else raw
+    if not isinstance(cookies, list):
+        raise RuntimeError("Cookie 文件格式无法识别")
 
+    session = requests.Session()
+    for cookie in cookies:
+        if not isinstance(cookie, dict) or "name" not in cookie or "value" not in cookie:
+            continue
+        options = {}
+        if cookie.get("domain"):
+            options["domain"] = cookie["domain"].lstrip(".")
+        if cookie.get("path"):
+            options["path"] = cookie["path"]
+        session.cookies.set(cookie["name"], cookie["value"], **options)
 
-def run(args: list[str], timeout: int = 120, check: bool = True) -> str:
-    proc = subprocess.run(
-        args,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        timeout=timeout,
+    session.headers.update(
+        {
+            "User-Agent": os.environ.get(
+                "V2EX_USER_AGENT",
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/150.0.0.0 Safari/537.36",
+            ),
+            "Accept": (
+                "text/html,application/xhtml+xml,application/xml;q=0.9,"
+                "image/avif,image/webp,image/apng,*/*;q=0.8"
+            ),
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+            "Upgrade-Insecure-Requests": "1",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "same-origin",
+            "Sec-Fetch-User": "?1",
+        }
     )
-    if check and proc.returncode != 0:
-        raise RuntimeError(f"command failed ({proc.returncode}): {' '.join(args)}\n{proc.stdout.strip()}")
-    return proc.stdout.strip()
+    return session
 
 
-def run_bu(args: list[str], timeout: int = 120, retries: int = 1) -> str:
-    last_error: Exception | None = None
-    for attempt in range(retries + 1):
-        try:
-            return run(args, timeout=timeout)
-        except Exception as exc:
-            last_error = exc
-            if attempt >= retries:
-                break
-            run(bu_args("close"), timeout=60, check=False)
-            time.sleep(2)
-    raise last_error or RuntimeError("browser-use command failed")
+def visible_text(document: str) -> str:
+    text = re.sub(r"(?is)<(?:script|style)\b.*?</(?:script|style)>", " ", document)
+    text = re.sub(r"(?s)<[^>]+>", " ", text)
+    return re.sub(r"\s+", " ", html.unescape(text)).strip()
 
 
-def parse_browser_use_result(output: str):
-    text = output.strip()
-    if text.startswith("result:"):
-        text = text.split("result:", 1)[1].strip()
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        return ast.literal_eval(text)
-
-
-def page_info() -> dict:
-    js = r"""
-(() => {
-  const html = document.documentElement.innerHTML;
-  const text = document.body ? document.body.innerText : '';
-  const redeemMatch = html.match(/location\.href\s*=\s*['"]([^'"]*\/mission\/daily\/redeem\?once=[^'"]+)['"]/);
-  const streakMatch = text.match(/已连续登录\s*(\d+)\s*天/);
-  const claimedMatch = text.match(/已成功领取每日登录奖励\s*([^\n]+)/);
-  return JSON.stringify({
-    url: location.href,
-    title: document.title,
-    loggedIn: text.includes('登出'),
-    signed: text.includes('每日登录奖励已领取'),
-    redeemPath: redeemMatch ? redeemMatch[1] : null,
-    streakDays: streakMatch ? Number(streakMatch[1]) : null,
-    claimed: claimedMatch ? claimedMatch[1].trim() : null,
-  });
-})()
-""".strip()
-    return parse_browser_use_result(run_bu(bu_args("eval", js), timeout=60))
+def page_info(document: str) -> dict:
+    text = visible_text(document)
+    redeem_match = re.search(
+        r"location\.href\s*=\s*['\"]([^'\"]*/mission/daily/redeem\?once=[^'\"]+)['\"]",
+        document,
+    )
+    streak_match = re.search(r"已连续登录\s*(\d+)\s*天", text)
+    return {
+        "loggedIn": "登出" in text,
+        "signed": "每日登录奖励已领取" in text,
+        "redeemPath": redeem_match.group(1) if redeem_match else None,
+        "streakDays": int(streak_match.group(1)) if streak_match else None,
+        "browserWarning": "奇奇怪怪的设置" in text,
+    }
 
 
 def main() -> int:
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    run(bu_args("close"), timeout=60, check=False)
-    try:
-        run_bu(bu_args("open", BASE_URL), timeout=180)
-        run_bu(bu_args("cookies", "import", COOKIE_FILE), timeout=60)
-        run_bu(bu_args("open", DAILY_URL), timeout=180)
-        info = page_info()
+    session = build_session()
+    response = session.get(DAILY_URL, timeout=TIMEOUT)
+    response.raise_for_status()
+    info = page_info(response.text)
 
-        if not info.get("loggedIn"):
-            print("V2EX 签到失败：自动化 Profile 未登录或 cookie 已失效。")
-            return 2
+    if not info["loggedIn"]:
+        print("V2EX 签到失败：Cookie 已失效，需要重新导出登录态。")
+        return 2
+    if info["signed"]:
+        print(f"V2EX 今日已签到，连续天数：{info['streakDays'] or '未知'}。{now}")
+        return 0
+    if not info["redeemPath"]:
+        print("V2EX 签到失败：未找到领取链接。")
+        return 3
 
-        if info.get("signed"):
-            print(f"V2EX 今日已签到，连续天数：{info.get('streakDays', '未知')}。{now}")
-            return 0
+    redeem_url = (
+        info["redeemPath"]
+        if info["redeemPath"].startswith("http")
+        else f"{BASE_URL}{info['redeemPath']}"
+    )
+    redeem_response = session.get(
+        redeem_url,
+        headers={"Referer": DAILY_URL},
+        timeout=TIMEOUT,
+        allow_redirects=True,
+    )
+    redeem_response.raise_for_status()
 
-        redeem_path = info.get("redeemPath")
-        if not redeem_path:
-            print("V2EX 签到失败：未找到领取链接。")
-            return 3
+    verify_response = session.get(
+        DAILY_URL,
+        headers={"Referer": redeem_response.url},
+        timeout=TIMEOUT,
+    )
+    verify_response.raise_for_status()
+    after = page_info(verify_response.text)
 
-        redeem_url = redeem_path if redeem_path.startswith("http") else f"{BASE_URL}{redeem_path}"
-        run_bu(bu_args("open", redeem_url), timeout=180)
-        run_bu(bu_args("open", DAILY_URL), timeout=180)
-        after = page_info()
-
-        if after.get("signed"):
-            print(f"V2EX 签到成功，连续天数：{after.get('streakDays', '未知')}。{now}")
-            return 0
-
-        print("V2EX 签到失败：访问领取链接后复查仍未显示已领取。")
-        return 4
-    finally:
-        run(bu_args("close"), timeout=60, check=False)
+    if after["signed"]:
+        print(f"V2EX 签到成功，连续天数：{after['streakDays'] or '未知'}。{now}")
+        return 0
+    if page_info(redeem_response.text)["browserWarning"] or after["browserWarning"]:
+        print("V2EX 签到失败：V2EX 拒绝了当前请求环境。")
+    else:
+        print("V2EX 签到失败：领取请求完成，但复查仍未显示已领取。")
+    return 4
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except Exception as exc:
+        print(f"V2EX 签到脚本异常：{exc}")
+        raise SystemExit(1)
 ```
 {% endcode %}
 
@@ -339,7 +382,8 @@ PY
 
 ## 运行建议
 
-* V2EX 推荐使用 browser-use 独立自动化 Profile + cookie 导入，避免依赖真实 Chrome Profile。
-* 如果脚本报告 V2EX 未登录，优先重新打开 `v2ex-auth` 手动登录并导出 cookie，不要先怀疑 redeem 逻辑。
+* V2EX 推荐用 browser-use 独立自动化 Profile 完成人工登录和 cookie 导出，定时领取使用普通 HTTP 会话，避免依赖真实 Chrome Profile，也避开自动 Chromium 的请求环境限制。
+* 如果脚本报告 V2EX 未登录，优先重新打开 `v2ex-auth` 手动登录并导出 cookie；如果登录有效但领取失败，应检查领取响应里的浏览器设置警告，而不是只看 HTTP 状态码或 `once` 是否变化。
+* V2EX 签到只有在复查页面明确显示已领取时才算成功；访问过领取链接不等于成功。
 * 一点万象方案依赖接口字段和签名规则，字段变化后需要重新核对请求结构。
 * 定时任务日志保留结果摘要即可，方便推送通知，也避免把整段响应体刷进通知里。
