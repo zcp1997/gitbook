@@ -9,7 +9,7 @@ layout:
 
 按分类整理当前数字资产、VPS、订阅服务、软件许可证和域名。
 
-> 数据来源：`/Users/zcp/codes/digital-assets/assets.md`。更新时间：2026-07-05 16:30:46 CST。
+> 数据来源：`/Users/zcp/codes/digital-assets/assets.md`。更新时间：2026-07-12 16:30:24 CST。
 
 ## 概览
 
@@ -35,7 +35,7 @@ layout:
 
 | 服务名称 | 服务商 | 金额 | 币种 | 周期 | 下次扣费日期 | 自动续费 | 管理地址 | 备注 |
 |---|---|---|---|---|---|---|---|---|
-| AppleOne | Apple | 195 | ₹ | 月付 | 2026/07/29 | 是 | [打开](https://account.apple.com/subscriptions) |  |
+| AppleOne | Apple | 270 | ￥ | 半年付 | 2027/01/08 | 是 | [打开](https://account.apple.com/subscriptions) | 拼车 |
 
 ## 软件 / 许可证
 
