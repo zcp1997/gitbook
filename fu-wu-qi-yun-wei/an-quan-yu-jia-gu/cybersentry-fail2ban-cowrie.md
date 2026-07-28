@@ -16,9 +16,7 @@ CyberSentry 是一个面向 Debian/Ubuntu VPS 的 Bash 安装器，用于部署�
 
 <a href="https://github.com/zcp1997/CyberSentry/blob/55c0084edb4be3959ad64689d17699dbbc156490/install.sh" class="button primary" data-icon="github">查看完整 install.sh</a>
 
-{% file src="https://raw.githubusercontent.com/zcp1997/CyberSentry/55c0084edb4be3959ad64689d17699dbbc156490/install.sh" %}
-经过验证的 `install.sh`，固定到提交 `55c0084`。
-{% endfile %}
+[下载固定版本 `install.sh`](https://raw.githubusercontent.com/zcp1997/CyberSentry/55c0084edb4be3959ad64689d17699dbbc156490/install.sh)，固定到提交 `55c0084`。
 
 ## 安全边界
 
