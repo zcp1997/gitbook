@@ -18,6 +18,7 @@
   * [性能测试脚本](fu-wu-qi-yun-wei/xing-neng-ce-shi-jiao-ben.md)
   * [排障手册](fu-wu-qi-yun-wei/pai-zhang-shou-ce.md)
   * [安全与加固](fu-wu-qi-yun-wei/an-quan-yu-jia-gu.md)
+    * [CyberSentry：Fail2ban 与 Cowrie 3 安全部署](fu-wu-qi-yun-wei/an-quan-yu-jia-gu/cybersentry-fail2ban-cowrie.md)
   * [服务部署片段](fu-wu-qi-yun-wei/fu-wu-bu-shu-pian-duan.md)
   * [视频处理](fu-wu-qi-yun-wei/shi-pin-chu-li/README.md)
     * [XHSUHD Docker 与 ffmpeg 录播转存](fu-wu-qi-yun-wei/shi-pin-chu-li/xhsuhd-docker-he-ffmpeg-lu-bo-zhuan-cun.md)
