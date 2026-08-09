@@ -9,12 +9,12 @@ layout:
 
 按分类整理当前数字资产、VPS、订阅服务、软件许可证和域名。
 
-> 数据来源：`/Users/zcp/codes/digital-assets/assets.md`。更新时间：2026-07-12 16:30:24 CST。
+> 数据来源：`/Users/zcp/codes/digital-assets/assets.md`。更新时间：2026-08-09 16:30:37 CST。
 
 ## 概览
 
-- 总条目：13
-- VPS：7
+- 总条目：14
+- VPS：8
 - 订阅服务：1
 - 软件 / 许可证：3
 - 域名：2
@@ -23,13 +23,14 @@ layout:
 
 | 服务名称 | 服务商 | 金额 | 币种 | 周期 | 下次扣费日期 | 自动续费 | 管理地址 | 备注 |
 |---|---|---|---|---|---|---|---|---|
-| 东京 Standard | halocloud | 9 | ￥ | 月付 | 2026/07/03 | 否 | [打开](https://portal.halocloudnet.com/console/product/serverDetail?id=2028641222887542786) | 家宽dns |
-| 香港 Standard | halocloud | 9 | ￥ | 月付 | 2026/10/01 | 否 | [打开](https://portal.halocloudnet.com/console/product/serverDetail?id=1986032722358960129) |  |
-| CN2/9929 4c-0.5g-15g-500m-1688g | leikwanhost | 75.74 | ￥ | 月付 | 2026/11/14 | 否 | [打开](https://buy.leikwanhost.com/clientarea.php?action=productdetails&id=550) | 另有独立 IP 288元/年，已单独入账 |
-| CN2/9929 独立 IP | leikwanhost | 288 | ￥ | 年付 | 2026/11/14 | 否 | [打开](https://buy.leikwanhost.com/clientarea.php?action=productdetails&id=550) | 关联 CN2/9929 4c-0.5g-15g-500m-1688g，独立 IP 费用 |
-| AMD Ryzen KVM VPS - 4GB | firevps | 18.95 | $ | 年付 | 2026/12/02 | 否 | [打开](https://clients.firevps.net/clientarea.php?action=productdetails&id=36098) | 主力性能机器 |
-| 腾讯云华东 - Spring Special | 腾讯云 | 1188 | ￥ | 年付 | 2027/02/10 | 否 | [打开](https://console.po0.com/clientarea.php?action=productdetails&id=464) | 国内BGP |
-| 腾讯云T1香港 - NANO | 腾讯云 | 443 | ￥ | 年付 | 2027/04/01 | 否 | [打开](https://console.po0.com/clientarea.php?action=productdetails&id=1765) |  |
+| DataWave HK | DataWave | 10 | ¥ | 月付 | 2026/09/01 | 是 | [打开](https://status.chriswu.de/instance/56c8646e-4acc-483e-81d8-ba6b0b418071) | 2Gbps;1T |
+| LeiKwan CN2 9929 | LeiKwan | 100 | ¥ | 月付 | 2026/11/07 | 是 | [打开](https://status.chriswu.de/instance/e5607576-3c14-48a4-b5b8-ddca4712aa0b) | 500Mbps;1688G |
+| FireVPS Ryzen NY | FireVPS | 18.95 | $ | 年付 | 2026/12/02 | 是 | [打开](https://status.chriswu.de/instance/6295f99a-a2f0-4da1-a2c2-5eea94ab3537) | 1Gbps;1T |
+| po0 ShangHai | po0 | 1188 | ¥ | 年付 | 2027/02/09 | 是 | [打开](https://status.chriswu.de/instance/ba6e43f8-01d4-4481-a9b5-6d81ac43b4ff) | 302Mbps;624G |
+| po0 HK Nano | po0 | 443 | ¥ | 年付 | 2027/04/01 | 是 | [打开](https://status.chriswu.de/instance/e2587391-7842-411e-9f4c-fd6019733df9) | 326Mbps;623G |
+| Nosla SJC | Nosla | 189 | ¥ | 年付 | 2027/04/29 | 是 | [打开](https://status.chriswu.de/instance/6828bb4a-2339-46cc-aee0-a9361cf7fc71) | 200Mbps;500G |
+| Bugnet Seattle | Bugnet | 26.99 | £ | 年付 | 2027/05/01 | 是 | [打开](https://status.chriswu.de/instance/c5ef8a65-4d6a-40a5-9a73-a08334ebf9f8) | 2Gbps;500G |
+| BreadCloud JP Bite | BreadCloud | 12 | $ | 年付 | 2027/08/01 | 是 | [打开](https://status.chriswu.de/instance/e97402bd-b10d-425f-b959-7d4489648c56) | 1Gbps;2T |
 
 ## 订阅服务
 
