@@ -14,6 +14,7 @@ icon: server
 ## 子目录
 
 - [常见工具脚本](chang-jian-gong-ju-jiao-ben.md)：系统初始化、网络配置、包管理、日志清理、证书、备份等高频命令。
+- [Surge Mac + Tailscale Exit Node](surge-mac-tailscale-exit-node.md)：让远程 Windows / iPhone 通过 Tailscale 回到 Mac mini，再由 Surge 统一完成 DNS、分流和代理出口。
 - [性能测试脚本](xing-neng-ce-shi-jiao-ben.md)：CPU、内存、磁盘、网络吞吐、延迟和业务压测命令。
 - [排障手册](pai-zhang-shou-ce.md)：线上异常、端口占用、DNS、磁盘、负载、服务不可用等排查流程。
 - [安全与加固](an-quan-yu-jia-gu.md)：SSH、防火墙、fail2ban、用户权限、最小权限和审计日志。

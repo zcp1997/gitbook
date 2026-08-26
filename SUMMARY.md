@@ -19,6 +19,7 @@
   * [MiMo Voice Clone 与 Telegram 语音发送](hermes-agent/mimo-voice-clone-telegram-yu-yin.md)
 * [服务器运维](fu-wu-qi-yun-wei/README.md)
   * [常见工具脚本](fu-wu-qi-yun-wei/chang-jian-gong-ju-jiao-ben.md)
+  * [Surge Mac + Tailscale Exit Node](fu-wu-qi-yun-wei/surge-mac-tailscale-exit-node.md)
   * [性能测试脚本](fu-wu-qi-yun-wei/xing-neng-ce-shi-jiao-ben.md)
   * [排障手册](fu-wu-qi-yun-wei/pai-zhang-shou-ce.md)
   * [安全与加固](fu-wu-qi-yun-wei/an-quan-yu-jia-gu.md)
