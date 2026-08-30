@@ -9,7 +9,7 @@ layout:
 
 按分类整理当前数字资产、VPS、订阅服务、软件许可证和域名。
 
-> 数据来源：`/Users/zcp/codes/digital-assets/assets.md`。更新时间：2026-08-09 16:30:37 CST。
+> 数据来源：`/Users/zcp/codes/digital-assets/assets.md`。更新时间：2026-08-30 16:30:29 CST。
 
 ## 概览
 
@@ -50,8 +50,8 @@ layout:
 
 | 服务名称 | 服务商 | 金额 | 币种 | 周期 | 下次扣费日期 | 自动续费 | 管理地址 | 备注 |
 |---|---|---|---|---|---|---|---|---|
-| chriswu.de | netcup | 1.32 | € | 年付 | 2026/08/26 | 是 | [打开](https://www.customercontrolpanel.de/domains.php) |  |
 | zoujiuyi.com | spaceship | 10.18 | $ | 年付 | 2026/11/29 | 是 | [打开](https://www.spaceship.com/zh/application/domain-list-application/) | 女儿域名 |
+| chriswu.de | netcup | 1.32 | € | 年付 | 2027/08/26 | 是 | [打开](https://www.customercontrolpanel.de/domains.php) |  |
 
 ## 维护说明
 
