@@ -9,7 +9,7 @@ layout:
 
 按分类整理当前数字资产、VPS、订阅服务、软件许可证和域名。
 
-> 数据来源：`/Users/zcp/codes/digital-assets/assets.md`。更新时间：2026-08-30 16:30:29 CST。
+> 数据来源：`/Users/zcp/codes/digital-assets/assets.md`。更新时间：2026-09-06 16:30:44 CST。
 
 ## 概览
 
@@ -23,7 +23,7 @@ layout:
 
 | 服务名称 | 服务商 | 金额 | 币种 | 周期 | 下次扣费日期 | 自动续费 | 管理地址 | 备注 |
 |---|---|---|---|---|---|---|---|---|
-| DataWave HK | DataWave | 10 | ¥ | 月付 | 2026/09/01 | 是 | [打开](https://status.chriswu.de/instance/56c8646e-4acc-483e-81d8-ba6b0b418071) | 2Gbps;1T |
+| DataWave HK | DataWave | 10 | ¥ | 月付 | 2026/10/01 | 是 | [打开](https://status.chriswu.de/instance/56c8646e-4acc-483e-81d8-ba6b0b418071) | 2Gbps;1T |
 | LeiKwan CN2 9929 | LeiKwan | 100 | ¥ | 月付 | 2026/11/07 | 是 | [打开](https://status.chriswu.de/instance/e5607576-3c14-48a4-b5b8-ddca4712aa0b) | 500Mbps;1688G |
 | FireVPS Ryzen NY | FireVPS | 18.95 | $ | 年付 | 2026/12/02 | 是 | [打开](https://status.chriswu.de/instance/6295f99a-a2f0-4da1-a2c2-5eea94ab3537) | 1Gbps;1T |
 | po0 ShangHai | po0 | 1188 | ¥ | 年付 | 2027/02/09 | 是 | [打开](https://status.chriswu.de/instance/ba6e43f8-01d4-4481-a9b5-6d81ac43b4ff) | 302Mbps;624G |
