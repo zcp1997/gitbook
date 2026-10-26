@@ -24,6 +24,7 @@
     * [2026-10-05](hermes-agent/zai-hua-zhou-bao/2026-10-05.md)
     * [2026-10-12](hermes-agent/zai-hua-zhou-bao/2026-10-12.md)
     * [2026-10-19](hermes-agent/zai-hua-zhou-bao/2026-10-19.md)
+    * [2026-10-26](hermes-agent/zai-hua-zhou-bao/2026-10-26.md)
   * [MiMo Voice Clone 与 Telegram 语音发送](hermes-agent/mimo-voice-clone-telegram-yu-yin.md)
 * [服务器运维](fu-wu-qi-yun-wei/README.md)
   * [常见工具脚本](fu-wu-qi-yun-wei/chang-jian-gong-ju-jiao-ben.md)
